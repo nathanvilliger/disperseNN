@@ -1,14 +1,51 @@
-// missing constants-e.g. sigma, K, W, G- should be defined on command line
+// Let the seed take the same value as the slurm array task, which also indexes the kernel exponent to take from the file of randomly drawn kernel exponents. 
+
+function (float)draw_jump_distance(numeric$ kernel_exp, numeric$ rad)
+{
+/*
+Use inverse transform sampling to sample from the jump kernel. Jump kernel is uniform out to distance 'rad' and then has power law decay according to r^(-(kernel_exp+1)) beyond that. Continuous value across boundary between the two different behaviors.
+
+Inputs: kernel_exp- the kernel exponent of the power law tail of the jump distribution
+		  rad- the distance where the uniform portion of the jump kernel ends and power law decay begins
+
+Returns: dist- the jump distance 
+*/
+	const = kernel_exp / (kernel_exp + 1); // normalization constant
+	u = runif(1);
+	if (u <= const) // if jump falls within uniform probability zone
+	{
+		dist = u * rad / const;
+	}
+	else // jump is beyond the uniform probability zone
+	{
+		dist = (rad^(-kernel_exp) * (const + const * kernel_exp - u * kernel_exp) / const)^(-1 / kernel_exp);
+	}
+	return dist;
+}
+
 
 initialize() {
 
+	 if(exists('slimgui'))
+	 {
+	 	defineConstant('sigma', 0.2);
+	 	defineConstant('kernel_exponent', 2);
+	 	defineConstant('K', 10);
+	 	defineConstant('W', 50);
+	 	defineConstant('G', 1e8);
+	 	defineConstant('mu', 0);
+	 	defineConstant('r', 1e-8);
+	 	defineConstant('maxgens', 4);
+	 	defineConstant('SEED', 92);
+	 	defineConstant('OUTNAME', 'test');
+	 	setwd('~/Desktop/');
+	 }
+
     setSeed(SEED);
-    print( c("new seed:",getSeed()) );
+    
     initializeSLiMModelType("nonWF");
     initializeSLiMOptions(dimensionality="xy");
     initializeTreeSeq(); 
-
-    print(sigma);
 
     defineConstant("SD", sigma);  // sigma_D, the dispersal distance
     defineConstant("SI", sigma);  // sigma_I, the spatial interaction distance
@@ -38,7 +75,11 @@ reproduction() {
     if (mate.size()) {
         nOff = rpois(1, FECUN);
         for (i in seqLen(nOff)) {
-            pos = individual.spatialPosition + rnorm(2, 0, SD);
+            jump = draw_jump_distance(kernel_exponent, SD);
+				theta = runif(1, min=0, max=2*PI);
+				jump_vec = jump * c(cos(theta), sin(theta));
+				pos = individual.spatialPosition + jump_vec;
+				
             if (p1.pointInBounds(pos)) {
                offspring = subpop.addCrossed(individual, mate);
                offspring.setSpatialPosition(pos);
@@ -72,7 +113,7 @@ early() {
 }
 
 1: late() {
-        print(c("Finished generation", sim.generation, "; N=", p1.individualCount));
+//        print(c("Finished generation", sim.generation, "; N=", p1.individualCount));
         if (p1.individualCount < (0.75*K*W*W)){
            catn("Population declined more than 25% in first 100 gens.");
            sim.simulationFinished();
@@ -96,8 +137,16 @@ early() {
 		
 		// end after maxgens
 		if (sim.generation == maxgens){
-                   sim.treeSeqOutput(paste(c(OUTNAME,"_",SEED,".trees"), sep=""));
-                   catn("Done.");
+						 tree_fname = paste(c(OUTNAME, "_", SEED, ".trees"), sep="");
+                   sim.treeSeqOutput(tree_fname);
+                   
+                   KE_fname = paste(c('test_data/kernel_exponent_', SEED, '.txt'), sep='');
+                   writeFile(KE_fname, asString(kernel_exponent));
+                   
+                   writeFile('test_data/list_of_tree_files.txt', tree_fname, append=T);
+                   writeFile('test_data/list_of_target_files.txt', KE_fname, append=T);
+
+						 catn(paste("Done with run", SEED));
                    sim.simulationFinished();
                 }
 	    }
