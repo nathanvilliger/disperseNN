@@ -37,8 +37,9 @@ initialize() {
 	 	defineConstant('r', 1e-8);
 	 	defineConstant('maxgens', 4);
 	 	defineConstant('SEED', 92);
-	 	defineConstant('OUTNAME', 'test');
 	 	setwd('~/Desktop/');
+	 	defineConstant('OUTDIR', getwd());
+	 	defineConstant('OUTNAME', 'test');
 	 }
 
     setSeed(SEED);
@@ -137,14 +138,14 @@ early() {
 		
 		// end after maxgens
 		if (sim.generation == maxgens){
-						 tree_fname = paste(c(OUTNAME, "_", SEED, ".trees"), sep="");
+						 tree_fname = paste(c(OUTDIR, '/', OUTNAME, "_", SEED, ".trees"), sep="");
                    sim.treeSeqOutput(tree_fname);
                    
-                   KE_fname = paste(c('test_data/kernel_exponent_', SEED, '.txt'), sep='');
+                   KE_fname = paste(c(OUTDIR, '/', 'kernel_exponent_', SEED, '.txt'), sep='');
                    writeFile(KE_fname, asString(kernel_exponent));
                    
-                   writeFile('test_data/list_of_tree_files.txt', tree_fname, append=T);
-                   writeFile('test_data/list_of_target_files.txt', KE_fname, append=T);
+                   writeFile(paste(c(OUTDIR, '/', 'list_of_tree_files.txt'), sep=''), tree_fname, append=T);
+                   writeFile(paste(c(OUTDIR, '/', 'list_of_target_files.txt'), sep=''), KE_fname, append=T);
 
 						 catn(paste("Done with run", SEED));
                    sim.simulationFinished();
